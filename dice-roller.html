@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<style>
+body {
+    margin: 0;
+    overflow: hidden;
+    background: #16213e;
+}
+#canvas {
+    width: 100%;
+    height: 100%;
+}
+.noselect {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+</style>
+</head>
+<body class="noselect">
+    <div id="canvas"></div>
+
+    <script src="libs/three.min.js"></script>
+    <script src="libs/cannon.min.js"></script>
+    <script src="teal.js"></script>
+    <script src="dice.js"></script>
+    
+    <script>
+        // 부모 창에서 메시지 수신
+        let box = null;
+        let currentDice = 'd20';
+        let selectorTimeout = null;
+        
+        window.addEventListener('message', function(e) {
+            if (e.data.type === 'selectDice') {
+                currentDice = e.data.dice;
+            } else if (e.data.type === 'roll') {
+                rollDice();
+            } else if (e.data.type === 'rollMultiple') {
+                rollMultipleDice(e.data.notation);
+            }
+        });
+        
+        function init() {
+            var canvas = document.getElementById('canvas');
+            canvas.style.width = window.innerWidth + 'px';
+            canvas.style.height = window.innerHeight + 'px';
+            
+            // 주사위 색상 설정 (Halo Blue / Neon Cyan)
+            $t.dice.dice_color = '#4dd0e1';
+            $t.dice.label_color = '#ffffff';
+            $t.dice.desk_color = 0x16213e;
+            $t.dice.use_true_random = false;
+            
+            // 대기화면 배경색 - desk_color와 동일하게 설정
+            $t.dice.selector_back_colors = { color: 0x16213e, shininess: 0, emissive: 0x000000 };
+            
+            // 주사위 크기 설정 - 값이 작을수록 주사위가 크게 보임 (5배 확대)
+            var diceSize = { w: 100, h: 60 };
+            
+            box = new $t.dice.dice_box(canvas, diceSize);
+            box.animate_selector = true;
+            
+            $t.bind(window, 'resize', function() {
+                canvas.style.width = window.innerWidth + 'px';
+                canvas.style.height = window.innerHeight + 'px';
+                box.reinit(canvas, diceSize);
+            });
+            
+            // 초기 표시 (주사위 선택 화면)
+            box.draw_selector();
+            
+            // 클릭으로 주사위 선택
+            $t.bind(canvas, ['mouseup', 'touchend'], function(ev) {
+                if (box.rolling) return;
+                var name = box.search_dice_by_mouse(ev);
+                if (name) {
+                    currentDice = name;
+                    window.parent.postMessage({ type: 'diceSelected', dice: name }, '*');
+                }
+            });
+        }
+        
+        function rollDice() {
+            if (!box || box.rolling) return;
+            
+            // 이전 setTimeout이 있으면 취소
+            if (selectorTimeout) {
+                clearTimeout(selectorTimeout);
+                selectorTimeout = null;
+            }
+            
+            var notation = $t.dice.parse_notation('1' + currentDice);
+            
+            box.start_throw(
+                function() { return notation; },
+                function(vectors, notation, callback) { callback(); },
+                function(notation, result) {
+                    var val = result[0];
+                    if (currentDice === 'd100' && val === 0) val = 100;
+                    if (currentDice === 'd10' && val === 0) val = 10;
+                    
+                    // 부모에게 결과 전송
+                    window.parent.postMessage({ type: 'rollResult', result: val, dice: currentDice }, '*');
+                    
+                    // 3초 후 선택화면으로
+                    if (selectorTimeout) {
+                        clearTimeout(selectorTimeout);
+                    }
+                    selectorTimeout = setTimeout(function() {
+                        selectorTimeout = null;
+                        if (!box.rolling) {
+                            box.draw_selector();
+                        }
+                    }, 3000);
+                }
+            );
+        }
+        
+        function rollMultipleDice(notationString) {
+            if (!box || box.rolling) return;
+            
+            // 이전 setTimeout이 있으면 취소
+            if (selectorTimeout) {
+                clearTimeout(selectorTimeout);
+                selectorTimeout = null;
+            }
+            
+            var notation = $t.dice.parse_notation(notationString);
+            
+            box.start_throw(
+                function() { return notation; },
+                function(vectors, notation, callback) { callback(); },
+                function(notation, result) {
+                    // 여러 주사위의 결과를 부모에게 전송
+                    window.parent.postMessage({ 
+                        type: 'rollMultipleResult', 
+                        results: result,
+                        notation: notationString
+                    }, '*');
+                    
+                    // 3초 후 선택화면으로
+                    if (selectorTimeout) {
+                        clearTimeout(selectorTimeout);
+                    }
+                    selectorTimeout = setTimeout(function() {
+                        selectorTimeout = null;
+                        if (!box.rolling) {
+                            box.draw_selector();
+                        }
+                    }, 3000);
+                }
+            );
+        }
+        
+        // DOM 로드 후 초기화
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
+    </script>
+</body>
+</html>

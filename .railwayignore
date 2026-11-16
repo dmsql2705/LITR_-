@@ -1,0 +1,16 @@
+# Ignore frontend directory in backend deployment
+litr-frontend/
+수정사항 확인할것/
+
+# Python cache
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# IDE
+.vscode/
+.idea/
+
+# Documentation
+*.md
+!README.md

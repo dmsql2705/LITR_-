@@ -1,0 +1,38 @@
+# Environment files
+.env
+.env.local
+.env.*.local
+*.env
+!.env.example
+
+# Frontend
+litr-frontend/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+venv/
+env/
+ENV/
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Misc
+수정사항 확인할것/
+*.md
+!README.md
